@@ -409,6 +409,8 @@
         let sortableInstances = [];
         let saveTimeout = null;
         let overlayPointerStart = { x: 0, y: 0 };  // B3: tracking pour distinguer clic réel vs drag-select
+        let ignoreNextOnRecords = false;
+
 
         // ═══════════════════════════════════════════════════════════════════════
         // UTILITIES
@@ -542,10 +544,10 @@
 columns.forEach(col => {
     const el = document.getElementById(`col-${col.key}`);
     if (el) {
-        el.dataset.column = col.key;  // ← stocker la clé sur le DOM
+        el.dataset.column = col.key;
         sortableInstances.push(new Sortable(el, {
             group: 'tasks', animation: 150, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
-            onEnd: (evt) => handleDrop(evt)  // ← plus besoin de passer col.key
+            onEnd: (evt) => handleDrop(evt, evt.to.dataset.column)
         }));
     }
 });
@@ -586,47 +588,37 @@ columns.forEach(col => {
             </div>`;
         }
 
-async function handleDrop(evt) {
+async function handleDrop(evt, targetColumnKey) {
     const taskId = parseInt(evt.item.dataset.id);
+    if (!taskId) return;
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    
-    // ✅ Récupérer la colonne de DESTINATION depuis le DOM
-    const targetColKey = evt.to.dataset.column;
-    if (!targetColKey) return;
-    
-    // Si même colonne (réordonnancement), rien à persister
-    const sourceColKey = evt.from.dataset.column;
-    if (sourceColKey === targetColKey) return;
-    
-    let updates = {};
-    if (groupBy === 'statut') {
-        updates.statut = targetColKey;
-        if (targetColKey === 'done') updates.progression = 100;
-        // Si on sort de "done", remettre progression à ce qu'elle était (ou 0)
-        if (sourceColKey === 'done' && targetColKey !== 'done' && task.progression === 100) {
-            updates.progression = 0;
-        }
-    }
-    else if (groupBy === 'priorite') updates.priorite = targetColKey;
-    else if (groupBy === 'projet') updates.projet = targetColKey === 'none' ? null : parseInt(targetColKey);
-    
-    // Mise à jour locale immédiate
+
+    const updates = {};
+    if (groupBy === 'statut') updates.statut = targetColumnKey;
+    else if (groupBy === 'priorite') updates.priorite = targetColumnKey;
+    else if (groupBy === 'projet') updates.projet = targetColumnKey === 'none' ? null : parseInt(targetColumnKey);
+
+    // Pas de changement réel ? On sort
+    if (String(task[groupBy]) === String(targetColumnKey)) return;
+
+    // 1) Appliquer localement immédiatement
     Object.assign(task, updates);
-    
+    render();
+
+    // 2) Persister dans Grist
     if (gristReady) {
+        ignoreNextOnRecords = true;
         try {
             await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', taskId, updates]]);
             showSaveIndicator();
         } catch (e) {
             console.error('Erreur déplacement:', e);
+            ignoreNextOnRecords = false;
             showToast('Erreur déplacement', 'error');
             await loadAllData();
         }
     }
-    
-    // Re-render pour synchroniser l'affichage
-    render();
 }
 
 
@@ -1049,14 +1041,32 @@ async function handleDrop(evt) {
         // ═══════════════════════════════════════════════════════════════════════
         // CRUD
         // ═══════════════════════════════════════════════════════════════════════
-        async function saveTaskToGrist() {
-            const data = panelState.editData;
-            if (!data || panelState.isNew || !gristReady) return;
-            if (data.dateDebut && data.dateEcheance && data.dateDebut > data.dateEcheance) { showToast('La date de début ne peut pas dépasser la date de fin', 'error'); return; }
-            syncLocalTask();  // FIX: Synchroniser localement avant envoi API
-            const record = { titre: data.titre, description: data.description, type: data.type, priorite: data.priorite, statut: data.statut, progression: data.progression, dateDebut: data.dateDebut, dateEcheance: data.dateEcheance, projet: data.projet, assignees: toGristRefList(data.assignees), dependDe: toGristRefList(data.dependDe), tags: toGristChoiceList(data.tags), estimationH: data.estimationH, tempsPasse: data.tempsPasse, subtasks: subtasksToJson(data.subtasks) };
-            try { await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', panelState.taskId, record]]); showSaveIndicator(); } catch (e) { showToast('Erreur sauvegarde', 'error'); }
-        }
+async function saveTaskToGrist() {
+    const data = panelState.editData;
+    if (!data || panelState.isNew || !gristReady) return;
+    if (data.dateDebut && data.dateEcheance && data.dateDebut > data.dateEcheance) {
+        showToast('La date de début ne peut pas dépasser la date de fin', 'error');
+        return;
+    }
+    syncLocalTask();
+    const record = {
+        titre: data.titre, description: data.description, type: data.type,
+        priorite: data.priorite, statut: data.statut, progression: data.progression,
+        dateDebut: data.dateDebut, dateEcheance: data.dateEcheance, projet: data.projet,
+        assignees: toGristRefList(data.assignees), dependDe: toGristRefList(data.dependDe),
+        tags: toGristChoiceList(data.tags), estimationH: data.estimationH,
+        tempsPasse: data.tempsPasse, subtasks: subtasksToJson(data.subtasks)
+    };
+    ignoreNextOnRecords = true;
+    try {
+        await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', panelState.taskId, record]]);
+        showSaveIndicator();
+    } catch (e) {
+        ignoreNextOnRecords = false;
+        showToast('Erreur sauvegarde', 'error');
+    }
+}
+
 
         async function createTask() {
             const data = panelState.editData;
@@ -1078,26 +1088,45 @@ async function handleDrop(evt) {
         // ═══════════════════════════════════════════════════════════════════════
         // INIT
         // ═══════════════════════════════════════════════════════════════════════
-        async function initGrist() {
-            try {
-                await grist.ready({ requiredAccess: 'full' });
-                await ensureSchema();
-                await loadAllData();
-                grist.onRecords(async () => await loadAllData());
-                grist.onRecord((rec) => { if (rec?.id && rec.id !== selectedTaskId) { selectedTaskId = rec.id; render(); } });
-                // GEN-02: Synchronisation des filtres inter-widgets
-                grist.onOptions((options, interaction) => {
-                    if (options?.filters && interaction?.source !== 'self') {
-                        const f = options.filters;
-                        filters.project = Array.isArray(f.project) ? f.project : [];
-                        filters.priority = Array.isArray(f.priority) ? f.priority : [];
-                        filters.assignee = Array.isArray(f.assignee) ? f.assignee : [];
-                        updateFilterMenus();
-                        render();
-                    }
-                });
-            } catch (e) { console.log('Demo mode'); useDemoMode(); }
-        }
+async function initGrist() {
+    try {
+        await grist.ready({ requiredAccess: 'full' });
+        await ensureSchema();
+        await loadAllData();
+
+        grist.onRecords(async () => {
+            if (ignoreNextOnRecords) {
+                ignoreNextOnRecords = false;
+                return;
+            }
+            await loadAllData();
+        });
+
+        grist.onRecord((rec) => {
+            if (rec?.id && rec.id !== selectedTaskId) {
+                selectedTaskId = rec.id;
+                render();
+            }
+        });
+
+        grist.onOptions((options, interaction) => {
+            if (options?.filters && interaction?.source !== 'self') {
+                const f = options.filters;
+                filters.project = Array.isArray(f.project) ? f.project : [];
+                filters.assignee = Array.isArray(f.assignee) ? f.assignee : [];
+                filters.priority = Array.isArray(f.priority) ? f.priority : [];
+                render();
+            }
+        });
+
+        gristReady = true;
+    } catch (e) {
+        console.warn('Grist non disponible, mode local');
+        gristReady = false;
+        render();
+    }
+}
+
         
         // GEN-02: Broadcast des filtres vers les autres widgets
         function broadcastFilters() {
