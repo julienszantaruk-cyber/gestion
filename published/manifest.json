@@ -1,0 +1,82 @@
+[
+  {
+    "widgetId": "qgis2grist",
+    "name": "QGIS → Grist Importer",
+    "url": "https://VOTRE_USER.github.io/Widgets-Grist/qgis2grist/",
+    "published": true,
+    "accessLevel": "full",
+    "renderAfterReady": true,
+    "description": "Importez des couches QGIS (qgis2web .zip/.html, .qgz, QField) directement dans Grist avec création automatique du schéma",
+    "lastUpdatedAt": "2026-02-26T16:21:48.859Z",
+    "authors": [
+      {
+        "name": "nic01asfr",
+        "url": "https://github.com/nic01asfr"
+      }
+    ]
+  },
+  {
+    "widgetId": "taskflow-kanban",
+    "name": "TaskFlow Kanban",
+    "url": "https://VOTRE_USER.github.io/Widgets-Grist/taskflow/kanban/",
+    "published": true,
+    "accessLevel": "full",
+    "renderAfterReady": true,
+    "description": "Tableau Kanban avec drag & drop pour la gestion de tâches",
+    "lastUpdatedAt": "2026-02-26T16:21:48.860Z",
+    "authors": [
+      {
+        "name": "nic01asfr",
+        "url": "https://github.com/nic01asfr"
+      }
+    ]
+  },
+  {
+    "widgetId": "taskflow-gantt",
+    "name": "TaskFlow Gantt",
+    "url": "https://VOTRE_USER.github.io/Widgets-Grist/taskflow/gantt/",
+    "published": true,
+    "accessLevel": "full",
+    "renderAfterReady": true,
+    "description": "Diagramme de Gantt interactif pour la planification",
+    "lastUpdatedAt": "2026-02-26T16:21:48.860Z",
+    "authors": [
+      {
+        "name": "nic01asfr",
+        "url": "https://github.com/nic01asfr"
+      }
+    ]
+  },
+  {
+    "widgetId": "taskflow-calendar",
+    "name": "TaskFlow Calendar",
+    "url": "https://VOTRE_USER.github.io/Widgets-Grist/taskflow/calendar/",
+    "published": true,
+    "accessLevel": "full",
+    "renderAfterReady": true,
+    "description": "Calendrier interactif avec vue mois/semaine/jour",
+    "lastUpdatedAt": "2026-02-26T16:21:48.860Z",
+    "authors": [
+      {
+        "name": "nic01asfr",
+        "url": "https://github.com/nic01asfr"
+      }
+    ]
+  },
+  {
+    "widgetId": "taskflow-dashboard",
+    "name": "TaskFlow Dashboard",
+    "url": "https://VOTRE_USER.github.io/Widgets-Grist/taskflow/dashboard/",
+    "published": true,
+    "accessLevel": "full",
+    "renderAfterReady": true,
+    "description": "Tableau de bord avec KPIs et statistiques des tâches",
+    "lastUpdatedAt": "2026-02-26T16:21:48.860Z",
+    "authors": [
+      {
+        "name": "nic01asfr",
+        "url": "https://github.com/nic01asfr"
+      }
+    ]
+  }
+]

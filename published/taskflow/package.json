@@ -1,0 +1,41 @@
+{
+  "name": "taskflow",
+  "version": "1.0.0",
+  "description": "Suite de widgets de gestion de projet pour Grist",
+  "authors": [
+    {
+      "name": "nic01asfr",
+      "url": "https://github.com/nic01asfr"
+    }
+  ],
+  "grist": [
+    {
+      "widgetId": "taskflow-kanban",
+      "name": "TaskFlow Kanban",
+      "url": "kanban/",
+      "accessLevel": "full",
+      "description": "Tableau Kanban avec drag & drop pour la gestion de tâches"
+    },
+    {
+      "widgetId": "taskflow-gantt",
+      "name": "TaskFlow Gantt",
+      "url": "gantt/",
+      "accessLevel": "full",
+      "description": "Diagramme de Gantt interactif pour la planification"
+    },
+    {
+      "widgetId": "taskflow-calendar",
+      "name": "TaskFlow Calendar",
+      "url": "calendar/",
+      "accessLevel": "full",
+      "description": "Calendrier interactif avec vue mois/semaine/jour"
+    },
+    {
+      "widgetId": "taskflow-dashboard",
+      "name": "TaskFlow Dashboard",
+      "url": "dashboard/",
+      "accessLevel": "full",
+      "description": "Tableau de bord avec KPIs et statistiques des tâches"
+    }
+  ]
+}
