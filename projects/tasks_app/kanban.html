@@ -538,17 +538,27 @@
                 </div>
             `).join('');
             
-            // Initialize Sortable
-            columns.forEach(col => {
-                const el = document.getElementById(`col-${col.key}`);
-                if (el) {
-                    sortableInstances.push(new Sortable(el, {
-                        group: 'tasks', animation: 150, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
-                        onEnd: (evt) => handleDrop(evt, col.key)
-                    }));
-                }
-            });
-        }
+// Initialize Sortable
+columns.forEach(col => {
+    const el = document.getElementById(`col-${col.key}`);
+    if (el) {
+        sortableInstances.push(new Sortable(el, {
+            group: 'tasks',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+
+            onEnd: (evt) => {
+                // ✅ récupérer la vraie colonne cible depuis le DOM
+                const newColKey = evt.to?.dataset?.key;
+                if (!newColKey) return;
+
+                handleDrop(evt, newColKey);
+            }
+        }));
+    }
+});
+
 
         function buildColumns(ft) {
             if (groupBy === 'statut') {
@@ -585,23 +595,45 @@
             </div>`;
         }
 
-        async function handleDrop(evt, colKey) {
-            const taskId = parseInt(evt.item.dataset.id);
-            const task = tasks.find(t => t.id === taskId);
-            if (!task) return;
-            
-            let updates = {};
-            if (groupBy === 'statut') { updates.statut = colKey; if (colKey === 'done') updates.progression = 100; }
-            else if (groupBy === 'priorite') updates.priorite = colKey;
-            else if (groupBy === 'projet') updates.projet = colKey === 'none' ? null : parseInt(colKey);
-            
-            Object.assign(task, updates);
-            
-            if (gristReady) {
-                try { await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', taskId, updates]]); showSaveIndicator(); }
-                catch (e) { showToast('Erreur déplacement', 'error'); await loadAllData(); }
-            }
+async function handleDrop(evt, colKey) {
+    const taskId = parseInt(evt.item.dataset.id);
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    let updates = {};
+
+    if (groupBy === 'statut') {
+        if (task.statut === colKey) return; // ✅ évite update inutile
+        updates.statut = colKey;
+        if (colKey === 'done') updates.progression = 100;
+    }
+    else if (groupBy === 'priorite') {
+        if (String(task.priorite) === colKey) return;
+        updates.priorite = colKey;
+    }
+    else if (groupBy === 'projet') {
+        const newProj = colKey === 'none' ? null : parseInt(colKey);
+        if (task.projet === newProj) return;
+        updates.projet = newProj;
+    }
+
+    // ✅ update local
+    Object.assign(task, updates);
+
+    if (gristReady) {
+        try {
+            await grist.docApi.applyUserActions([
+                ['UpdateRecord', 'Tasks', taskId, updates]
+            ]);
+            showSaveIndicator();
+        } catch (e) {
+            console.error(e);
+            showToast('Erreur déplacement', 'error');
+            await loadAllData();
         }
+    }
+}
+
 
         // ═══════════════════════════════════════════════════════════════════════
         // PANEL
